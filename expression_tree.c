@@ -1,81 +1,100 @@
 #include "header.h"
-
-stack* init_stack(trie* tree) {
-    stack* stos = calloc(1,sizeof(stack));
-    if (stos == NULL) exit(1);
-    stos->val = tree;
-    return stos;
-}
-void add_to_stack(stack* stos,trie* tree) {
-    while (stos->next != NULL) {
-        stos = stos->next;
+stack* init_stack(tree* t) {
+    stack* s = calloc(1, sizeof(stack));
+    if (s == NULL) {
+        fprintf(stderr, "Allocation error!");
+        exit(1);
     }
-    stos->next = init_stack(tree);
-    stack* stos_copy = stos;
-    stos = stos->next;
-    stos->prev = stos_copy;
+    s->val = t;
+    return s;
 }
-void add_to_stack_f1(stack* stos, trie* tree) {
-    while (stos->next != NULL) stos = stos->next;
-    tree->right = stos->val;
-    stos->val = tree;
+void add_to_stack(stack* s,tree* t) {
+    while (s->next != NULL) {
+        s = s->next;
+    }
+    s->next = init_stack(t);
+    stack* scp = s;
+    s = s->next;
+    s->prev = scp;
 }
-void add_to_stack_f2(stack* stos, trie* tree) {
-    while (stos->next != NULL) stos = stos->next;
-    tree->right = stos->val;
-    stos = stos->prev;
-    stos->next = NULL;
-    tree->left = stos->val;
-    stos->val = tree;
+void add_to_stack_unary(stack* s, tree* t) {
+    while (s->next != NULL) s = s->next;
+    t->right = s->val;
+    s->val = t;
 }
-trie* leaves(char* bin) {
-    trie* lisc = calloc(1,sizeof(trie));
+void add_to_stack_binary(stack* s, tree* t) {
+    while (s->next != NULL) s = s->next;
+    t->right = s->val;
+    s = s->prev;
+    s->next = NULL;
+    t->left = s->val;
+    s->val = t;
+}
+tree* numbers(char* bin) {
+    tree* t = calloc(1, sizeof(tree));
+    if (t == NULL) {
+        fprintf(stderr, "Allocation error!");
+        exit(1);
+    }
     if (strcmp(bin,"pi") == 0) {
-        lisc->val = M_PI;
-        return lisc;
+        t->val = M_PI;
+        return t;
     }
     else if (strcmp(bin,"e") == 0) {
-        lisc->val = M_E;
-        return lisc;
+        t->val = M_E;
+        return t;
     }
     else {
         for (int i = 0; bin[i] != '\0'; i++) {
             if (bin[i] == '.') {
-                lisc->val = atof(bin);
-                return lisc;
+                t->val = atof(bin);
+                return t;
             }
         }
     }
-    lisc->val = atoi(bin);
-    return lisc;
+    t->val = atoi(bin);
+    return t;
 }
-trie* function12(char* bin) {
-    trie* lisc = calloc(1,sizeof(trie));
-    for (int i = 0; bin[i] != '\0'; i++) {
-        lisc->function[i] = bin[i];
+tree* function_variable(char* bin) {
+    tree* t = calloc(1, sizeof(tree));
+    if (t == NULL) {
+        fprintf(stderr, "Allocation error!");
+        exit(1);
     }
-    return lisc;
+    for (int i = 0; bin[i] != '\0'; i++) {
+        t->function[i] = bin[i];
+    }
+    return t;
 }
-trie* exp_tree(char* expression) {
+tree* exp_tree(char* expression) {
     char* bin = strtok(expression, " ");
-    trie* elem;
-    stack* stos = NULL;
+    tree* elem;
+    stack* s = NULL;
     while(bin != NULL) {
         if (isdigit((int)bin[0]) > 0 || strcmp(bin,"pi") == 0 || strcmp(bin,"e") == 0) {
-            elem = leaves(bin);
-            if (stos == NULL) stos = init_stack(elem);
-            else add_to_stack(stos,elem);
+            elem = numbers(bin);
+            if (s == NULL) s = init_stack(elem);
+            else add_to_stack(s, elem);
         }
-        else if (is_f1(bin[0],bin[1],bin[2]) == 3 || bin[0] == '~') {
-            elem = function12(bin);
-            add_to_stack_f1(stos,elem);
+        else if (bin[0] == 'v') {
+            elem = function_variable(bin);
+            if (s == NULL) s = init_stack(elem);
+            else add_to_stack(s, elem);
         }
-        else if (is_f2(bin[0]) == 1) {
-            elem = function12(bin);
-            add_to_stack_f2(stos,elem);
+        else if (is_unary(bin[0],bin[1],bin[2]) > 0) {
+            elem = function_variable(bin);
+            add_to_stack_unary(s, elem);
         }
-
+        else if (is_binary(bin[0]) == 1) {
+            elem = function_variable(bin);
+            add_to_stack_binary(s, elem);
+        }
         bin = strtok( NULL, " ");
     }
-    return stos->val;
+    if (s->next != NULL && s->next->val != NULL) {
+        fprintf(stderr, "Wrong expression!");
+        exit(2);
+    }
+    free(bin);
+    return s->val;
 }

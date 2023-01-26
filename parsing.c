@@ -1,154 +1,240 @@
 #include "header.h"
-char f1[7][3] = {"sin","cos","abs","tan","log","exp","sqr"};
-char f2[6] = {'+', '-', '/', '*', '^', '~'};
 
-int is_f1(char c1, char c2, char c3) {
-    for (int i = 0; i < 6; i++) if (f1[i][0] == c1 && f1[i][1] == c2 && f1[i][2] == c3) return 3;
+int is_unary(char c1, char c2, char c3) {
+    if (c1 == '~') return 1;
+    for (int i = 0; i < 7; i++) if (unary[i][0] == c1 && unary[i][1] == c2 && unary[i][2] == c3) return 3;
     return 0;
-} //funkcja do sprawdzenia jest to funkcja z f1
-int is_f2(char c) {
-    for (int i = 0; i < 6; i++) {
-        if (c == f2[i]) return 1;
-    }
+}
+int is_binary(char c) {
+    for (int i = 0; i < 5; i++) if (c == binary[i]) return 1;
     return 0;
-}//funkcja do sprawdzania czy znak jest w f2
+}
 int priority(char c) {
-    if (c == '(' || c == 'f') return 0;
+    if (c == '(') return 0;
     else if (c == '+' || c == '-') return 1;
     else if (c == '*' || c == '/') return 2;
-    else return 3;
-} //funkcja zwrcajac prioryte znaków
-void RPN(char* s) {
-    int is = 0, iexp = 0, istack = 0, ifunction = 0, lexp = 50, lstack = 25, lfunction = 25,prio_before, prio_new, pk, ifun;
+    else if (c == '^') return 3;
+    else return 4;
+}
+void RPN(char* bin) {
+    int index = 0, iexp = 0, is = 0, ifun = 0, lexp = 50, ls = 25, lfun = 25,priobef, prionow, cd, val;
     char* exp = malloc(lexp*sizeof(char));
-    char* stack = malloc(lstack*sizeof (char));
-    char* function = malloc(lfunction*sizeof(char));
-    if (exp == NULL || stack == NULL || function == NULL) exit(1);
-    while (s[is] != '\0') {
-        if (s[is] == ' ') is++; //spacja
-        else if (s[is] == 'v') {
+    char* s = malloc(ls * sizeof(char));
+    char* function = malloc(lfun * sizeof(char));
+    if (exp == NULL || s == NULL || function == NULL) {
+        fprintf(stderr, "Allocation error!");
+        exit(1);
+    }
+    while (bin[index] != '\0') {
+        if (bin[index] == ' ') index++;
+        else if (bin[index] == 'v') {
             exp[iexp] = 'v';
             for (int i = 1; i < 4; i++) {
-                if (!isdigit(s[is + i])) exit(2);
-                else exp[iexp + i] = s[is + i];
+                if (!isdigit(bin[index + i])) {
+                    fprintf(stderr, "Wrong expression!");
+                    exit(2);
+                }
+                else exp[iexp + i] = bin[index + i];
             }
             exp[iexp + 4] = ' ';
             iexp += 5;
-            is += 4;
-        } //zmienna
-        else if (isdigit(s[is]) > 0) {
-            pk = 0;
-            for (int i = is; isdigit(s[i]) > 0 || s[i] == ',' || s[i] == '.'; i++) {
-                if (pk == 0 && (s[i] == ',' || s[i] == '.')) {
-                    pk++;
+            index += 4;
+        }
+        else if (isdigit(bin[index]) > 0) {
+            cd = 0;
+            for (int i = index; isdigit(bin[i]) > 0 || bin[i] == ',' || bin[i] == '.'; i++) {
+                if (cd == 0 && (bin[i] == ',' || bin[i] == '.')) {
+                    cd++;
                     exp[iexp] = '.';
-                } else if (isdigit(s[i]) > 0) exp[iexp] = s[i];
-                else exit(2);
+                } else if (isdigit(bin[i]) > 0) exp[iexp] = bin[i];
+                else {
+                    fprintf(stderr, "Wrong expression!");
+                    exit(2);
+                }
                 iexp++;
-                is++;
+                index++;
             }
             exp[iexp] = ' ';
             iexp++;
-        } //liczba
-        else if (s[is] == 'e' && s[is + 1] != 'x') {
+        }
+        else if (bin[index] == 'e' && bin[index + 1] != 'x') {
             exp[iexp] = 'e';
             exp[iexp + 1] = ' ';
-            is++;
+            index++;
             iexp += 2;
-        } //stała e
-        else if (s[is] == 'p' && s[is + 1] == 'i') {
+        }
+        else if (bin[index] == 'p' && bin[index + 1] == 'i') {
             exp[iexp] = 'p';
             exp[iexp + 1] = 'i';
             exp[iexp + 2] = ' ';
-            is += 2;
+            index += 2;
             iexp += 3;
-        } //stała pi
-        else if (s[is] == '(') {
-            stack[istack] = '(';
-            istack++;
+        }
+        else if (bin[index] == '(') {
+            s[is] = '(';
             is++;
-        } //otwarcie wyrazenia w nawiasie/funkcji 1-arg
-        else if (is_f2(s[is]) == 1) {
-            if (istack-1 >= 0) prio_before = priority(stack[istack-1]);
-            else prio_before = 0;
-            prio_new = priority(s[is]);
-            while (prio_before > prio_new) {
-                istack--;
-                exp[iexp] = stack[istack];
-                exp[iexp + 1] = ' ';
-                iexp += 2;
-                stack[istack] = '\0';
-                if (istack - 1 >= 0) prio_before = priority(stack[istack - 1]);
-                else prio_before = 0;
-            }
-            stack[istack] = s[is];
-            istack++;
-            is++;
-        } //znak na stos + ewentualne zwolnienie miejsca na stosie
-        else if (s[is] == ')') {
-            for (int i = istack - 1;; i--) {
-                if (stack[i] == '(') {
-                    stack[i] = '\0';
-                    istack = i;
-                    break;
-                } else {
-                    exp[iexp] = stack[i];
+            index++;
+        }
+        else if (is_binary(bin[index]) == 1) {
+            if (is - 1 >= 0) priobef = priority(s[is - 1]);
+            else priobef = 0;
+            prionow = priority(bin[index]);
+            while (priobef > prionow) {
+                is--;
+                if (s[is] == 'f') {
+                    ifun--;
+                    if (function[ifun] == '~') {
+                        exp[iexp] = function[ifun];
+                        exp[iexp+1] = ' ';
+                        iexp += 2;
+                    }
+                    else {
+                        for (int i = ifun - 2; i <= ifun; i++) {
+                            exp[iexp] = function[i];
+                            function[i] = '\0';
+                            iexp++;
+                        }
+                        exp[iexp] = ' ';
+                        iexp++;
+                        ifun -= 2;
+                    }
+                }
+                else {
+                    exp[iexp] = s[is];
                     exp[iexp + 1] = ' ';
                     iexp += 2;
-                    stack[istack] = '\0';
+                    s[is] = '\0';
                 }
+                if (is - 1 >= 0) priobef = priority(s[is - 1]);
+                else priobef = 0;
             }
-            if (stack[istack-1] == 'f') {
-                istack --;
-                stack[istack] = '\0';
-                ifunction --;
-                for (int i = ifunction-2; i <= ifunction; i++) {
-                    exp[iexp] = function[i];
-                    function[i] = '\0';
-                    iexp ++;
-                }
-                exp[iexp] = ' ';
-                iexp ++;
-                ifunction -= 2;
-            }
+            s[is] = bin[index];
             is++;
-        }//zamkniecie wyrazenia w nawiasie/funkcji 1-arg
-        else if ((ifun = is_f1(s[is],s[is+1],s[is+2]))>0) {
-            stack[istack] = 'f';
-            istack++;
-            for (int i = is; i < is+ifun; i++) {
-                function[ifunction] = s[i];
-                ifunction++;
+            index++;
+        }
+        else if (bin[index] == ')') {
+            for (int i = is - 1;; i--) {
+                if (s[i] == '(') {
+                    s[i] = '\0';
+                    is = i;
+                    break;
+                }
+                else {
+                    if (s[i] == 'f') {
+                        ifun --;
+                        if (function[ifun] == '~') {
+                            exp[iexp] = function[ifun];
+                            function[ifun] = '\0';
+                            exp[iexp+1] = ' ';
+                            iexp += 2;
+                        }
+                        else {
+                            for (int j = ifun - 2; j <= ifun; j++) {
+                                exp[iexp] = function[j];
+                                function[j] = '\0';
+                                iexp++;
+                            }
+                            exp[iexp] = ' ';
+                            iexp++;
+                            ifun -= 2;
+                        }
+                    }
+                    else {
+                        exp[iexp] = s[i];
+                        exp[iexp + 1] = ' ';
+                        iexp += 2;
+                        s[is] = '\0';
+                    }
+                }
             }
-            is += ifun;
-        } //dodawanie funkcji 1-arg do stosu
-        else exit(2);
+            if (s[is - 1] == 'f') {
+                is --;
+                s[is] = '\0';
+                ifun --;
+                if (function[ifun] == '~') {
+                    exp[iexp] = function[ifun];
+                    function[ifun] = '\0';
+                    exp[iexp+1] = ' ';
+                    iexp += 2;
+                }
+                else {
+                    for (int i = ifun - 2; i <= ifun; i++) {
+                        exp[iexp] = function[i];
+                        function[i] = '\0';
+                        iexp++;
+                    }
+                    exp[iexp] = ' ';
+                    iexp++;
+                    ifun -= 2;
+                }
+            }
+            index++;
+        }
+        else if ((val = is_unary(bin[index], bin[index + 1], bin[index + 2])) > 0) {
+            s[is] = 'f';
+            is++;
+            for (int i = index; i < index + val; i++) {
+                function[ifun] = bin[i];
+                ifun++;
+            }
+            index += val;
+        }
+        else {
+            fprintf(stderr, "Wrong expression!");
+            exit(2);
+        }
         if (lexp/2 <= iexp) {
             lexp *= 2;
             exp = realloc(exp,lexp*sizeof(char));
         }
-        if (lstack/2 <= istack) {
-            lstack *= 2;
-            stack = realloc(stack,lstack*sizeof(char));
+        if (ls / 2 <= is) {
+            ls *= 2;
+            s = realloc(s, ls * sizeof(char));
         }
-        if (lfunction/2 <= ifunction) {
-            lfunction *= 2;
-            function = realloc(function,lfunction*sizeof(char));
+        if (lfun / 2 <= ifun) {
+            lfun *= 2;
+            function = realloc(function, lfun * sizeof(char));
         }
-        if (exp == NULL || stack == NULL || function == NULL) exit(1);
+        if (exp == NULL || s == NULL || function == NULL) {
+            fprintf(stderr, "Allocation error!");
+            exit(1);
+        }
     }
-    istack--;
-    while (istack >= 0) {
-        if (stack[istack] == 'f' || stack[istack] == '(') exit(2);
-        exp[iexp] = stack[istack];
-        exp[iexp+1] = ' ';
-        iexp += 2;
-        istack--;
-    }//wypisanie znaków pozostałych na stosie
-    s = realloc(s,lexp*sizeof(char));
-    s = memset(s,0,strlen(s));
-    for (int i = 0; i < iexp; i++) s[i] = exp[i];
+    while (is > 0) {
+        is--;
+        if (s[is] == '(') {
+            fprintf(stderr, "Wrong expression!");
+            exit(2);
+        }
+        else if (s[is] == 'f') {
+            s[is] = '\0';
+            ifun --;
+            if (function[ifun] == '~') {
+                exp[iexp] = function[ifun];
+                function[ifun] = '\0';
+                exp[iexp+1] = ' ';
+                iexp += 2;
+            }
+            else {
+                for (int i = ifun - 2; i <= ifun; i++) {
+                    exp[iexp] = function[i];
+                    function[i] = '\0';
+                    iexp++;
+                }
+                exp[iexp] = ' ';
+                iexp++;
+                ifun -= 2;
+            }
+        }
+        else {
+            exp[iexp] = s[is];
+            exp[iexp + 1] = ' ';
+            iexp += 2;
+        }
+    }
+    bin = memset(bin, 0, strlen(bin));
+    for (int i = 0; i < iexp; i++) bin[i] = exp[i];
     free(exp);
-    free(stack);
+    free(s);
     free(function);
 }

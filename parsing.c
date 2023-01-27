@@ -233,6 +233,10 @@ void RPN(char* bin) {
         }
     }
     bin = memset(bin, 0, strlen(bin));
+    if (exp[0] == '\0') {
+        fprintf(stderr, "Wrong expression!");
+        exit(2);
+    }
     for (int i = 0; i < iexp; i++) bin[i] = exp[i];
     free(exp);
     free(s);

@@ -1,6 +1,11 @@
 # Calculator of 1000 variables!
 - **assign** expressions to variables from v000 to v999 e.g. `v010=v009*1000`
 - a lot of fuctions, pi and e to **use**
+## ⚙️How to install?
+- `git clone ...`
+- `gcc header.h parsing.c expression_tree.c evaluate_expression.c main.c`
+- `./a.out`
+
 ## Available operands
 - **Unary:**
 `sin cos tan exp sqr log abs ~`
